@@ -150,7 +150,7 @@
                 }
                 // 更新圖表的抬頭
                 //$scope.chartConfig.title.text = "活動力: " + $scope.vm.user_id;
-                $scope.chartConfig.title.text = "Group chat in room: " + $scope.vm.group_id;
+                //$scope.chartConfig.title.text = "Group chat in room: " + $scope.vm.group_id;
 
                 // 產生mqtt連結client物件的instance
                 mqtt_client = new Paho.MQTT.Client($scope.vm.mqtt_host, Number($scope.vm.mqtt_port), Math.uuid(8, 16));
@@ -393,6 +393,9 @@
             update_chart_data = function (chart_data_type, chart_data) {
                 // 取得原生的highchart的物件instance
                 var highchart = $scope.chartConfig.getHighcharts();
+        		var x = (new Date()).getTime(),
+            	y = $scope.vm.g1_users.length;
+				highchart.series[0].addPoint([x, y], true, true);
                 // 透過原本的highchart的API來修改圖表的資料
 				/*
                 if (chart_data_type === "move") {
@@ -424,22 +427,65 @@
 			};
 
             // 設定要繋結到Highchart的chartConfig物件
-            $scope.chartConfig = ({
-                options: {
-                    chart: {
-                        type: 'column',
-                    }
-            	},
-				title: {
-					text: ""
-				},
-				xAxis: {
-					categories: ['g1','g2']
-				},
-				series:[{
-					data:[{y:0},{y:0},{y:0},{y:0},{y:0}]
-				}]
-			});
+            $scope.chartConfig = {
+        		options: {
+            		//This is the Main Highcharts chart config. Any Highchart options are valid here.
+            		//will be overriden by values specified below.
+            		chart: {
+            		    type: 'spline',
+            		    animation: Highcharts.svg, // don't animate in old IE
+            		    marginRight: 10,
+
+            		},
+            		title: {
+            		    text:'Chat in room: ' + $scope.vm.group_id
+            		},
+            		xAxis: {
+            		    type: 'datetime',
+            		    tickPixelInterval: 150
+            		},
+            		yAxis: {
+            		    title: {
+            		        text: 'Value'
+            		    },
+            		    plotLines: [{
+            		        value: 0,
+            		        width: 1,
+            		        color: '#808080'
+            		    }]
+            		}
+        		},
+        		tooltip: {
+        		    formatter: function () {
+        		        return '<b>' + this.series.name + '</b><br/>' +
+        		            Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+        		            Highcharts.numberFormat(this.y, 2);
+        		    }
+        		},
+        		legend: {
+        		    enabled: false
+        		},
+        		exporting: {
+        		    enabled: false
+        		},
+        		series: [{
+        		    name: 'Live Users',
+        		    data: (function () {
+        		        // generate an array of random data
+        		        let data = [],
+        		            time = (new Date()).getTime();
+
+        		        for (i = -2; i <= 0; i += 1) {
+        		            data.push({
+        		                x: time + i * 1000,
+        		                y: 0
+        		            });
+        		        }
+        		        return data;
+        		    }())
+        		}]
+			};
+
         });
     </script>
 </body>
