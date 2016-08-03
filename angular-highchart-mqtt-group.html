@@ -28,12 +28,16 @@
         User Name: <br />
         <input type="text" ng-model="vm.user_id" /><br /><br />
         Group Name: <br />
-        <input type="text" ng-model="vm.group_id" ng-show="vm.is_connected" size="30" />
-		<input type="button" value="Join Group" ng-click="action.join_group()" ng-show="vm.is_connected && vm.group_id.length>0" /><br /><br />
+        <select ng-model="vm.group_id" />
+            <option value="g1"> g1</option>
+            <option value="g2"> g2</option>
+		</select><br /><br />
+		<!-- <input type="button" value="Join Group" ng-click="action.join_group()" /><br /><br /> -->
 
         Topic: <br />
         <input type="text" ng-model="vm.topic" ng-show="vm.is_connected" size="30" />
         <br />
+		<!--
         Chart Data Type:<br />
         <select ng-model="vm.chart_data_type" ng-show="vm.is_connected">
             <option value="move"> 移動</option>
@@ -44,6 +48,11 @@
         Chart Data: <br />
         <input type="number" ng-model="vm.message" ng-show="vm.is_connected" />
         <input type="button" value="Send" ng-click="action.send_message()" ng-show="vm.is_connected && vm.topic.length>0" /> <br /><br />
+		-->
+
+        Message: <br />
+        <input type="text" ng-model="vm.message" ng-show="vm.is_connected" />
+        <input type="button" value="Send" ng-click="action.send_message()" ng-show="vm.is_connected" /> <br /><br />
 
         Subscribe Topic: <br />
         <input type="text" ng-model="vm.subscribe_topic" ng-show="vm.is_connected" />
@@ -109,8 +118,8 @@
             $scope.vm = {};
             $scope.vm.mqtt_host = "127.0.0.1";
             $scope.vm.mqtt_port = "9001";
-            $scope.vm.user_id = "";
-            $scope.vm.group_id = "chat1";
+            $scope.vm.user_id = "q";
+            $scope.vm.group_id = "g1";
 
             $scope.vm.topic = "";
             $scope.vm.message = 0;
@@ -121,7 +130,8 @@
             $scope.vm.subscribed_topics = [];
             $scope.vm.inbound_messages = [];
             $scope.vm.online_users = [];
-			$scope.vm.subgroups = [];
+			$scope.vm.g1_users = [];
+			$scope.vm.g2_users = [];
 
             // 初始圖表的資料與變數
             $scope.vm.chart_data_type = "move";
@@ -130,7 +140,7 @@
             $scope.vm.chart_data_standard = 0;
 
             // 設定UI會觸發的動作
-            $scope.action = {};            
+            $scope.action = {};
             // **動作: 連接MQTT Broker
             $scope.action.connect_mqtt = function () {
                 // 檢查user_id不能為空
@@ -139,7 +149,8 @@
                     return;
                 }
                 // 更新圖表的抬頭
-                $scope.chartConfig.title.text = "活動力: " + $scope.vm.user_id;
+                //$scope.chartConfig.title.text = "活動力: " + $scope.vm.user_id;
+                $scope.chartConfig.title.text = "Group chat in room: " + $scope.vm.group_id;
 
                 // 產生mqtt連結client物件的instance
                 mqtt_client = new Paho.MQTT.Client($scope.vm.mqtt_host, Number($scope.vm.mqtt_port), Math.uuid(8, 16));
@@ -181,6 +192,26 @@
                     var private_chat_topic = "rtwchat/user/" + $scope.vm.user_id + "/chart/+";
                     mqtt_client.subscribe(private_chat_topic);
                     $scope.vm.subscribed_topics.push(private_chat_topic);
+
+					// Subscribe new joined group member "rtwchat/group/{group_id}/chat/+"
+                	var gchat_topic = "rtwchat/group/" + $scope.vm.group_id + "/chat/+";
+                	mqtt_client.subscribe(gchat_topic);
+                	$scope.vm.subscribed_topics.push(gchat_topic);
+
+					switch($scope.vm.group_id) {
+						case "g1":
+							$scope.vm.g1_users.push($scope.vm.user_id);
+							console.log($scope.vm.g1_users.length);
+							break;
+						case "g2":
+							$scope.vm.g2_users.push($scope.vm.user_id);
+							console.log($scope.vm.g2_users.length);
+							break;
+						default:
+							console.log("Something wrong with group assignment");
+					}
+
+					console.log("join group: " + $scope.vm.group_id);
 
                     $scope.$apply(); //<--這個動作通知angular.js來觸發data-binding的sync
                 }
@@ -227,6 +258,37 @@
                         }
                     }
 
+                	/*var user_id = $scope.vm.user_id; //get the "userid"
+                	var regex = "rtwchat/group/g1/presence";
+					console.log(topic);
+                	//found = message.payloadString.match(regex);
+                	//found = msgObj.payload.match(regex);
+					var found = topic.match(regex);
+                	var idx = $scope.vm.g1.indexOf(user_id); // 檢查在UI的array中是否存在相同的使用者
+					console.log("debug");
+                	if (found) {
+                	    if (idx == -1)
+                	        $scope.vm.g1.push(user_id);
+                	}
+                	else {
+                	    if (idx != -1)
+                	        $scope.vm.g1.splice(idx, 1);
+                	}
+
+                	var regex = "rtwchat/group/g2/presence";
+                	//found = msgObj.payload.match(regex);
+					var found = topic.match(regex);
+                	var idx = $scope.vm.g2.indexOf(user_id); // 檢查在UI的array中是否存在相同的使用者
+                	if (found) {
+                	    if (idx == -1)
+                	        $scope.vm.g2.push(user_id);
+                	}
+                	else {
+                	    if (idx != -1)
+                	        $scope.vm.g2.splice(idx, 1);
+                	}*/
+
+
                     // 使用regular expression來偵測是否為"chart"訊息
                     regex = "rtwchat/user/(.+)/chart/(.+)";
                     found = topic.match(regex);
@@ -240,6 +302,11 @@
                     $scope.$apply(); //<--這個動作通知angular.js來觸發data-binding的sync
                 }
             };
+
+            // Utility函式
+            reset_variables = function () {
+                $scope.vm.message = "";
+            };
 				
 			$scope.action.join_group = function () {
                 // group_id must be non-zero
@@ -247,18 +314,14 @@
                     alert("Group ID could not be empty!")
                     return;
                 }
-
-				// Subscribe new joined group member "rtwchat/group/{group_id}/presence"
-                var presence_topic = "rtwchat/group/" + $scope.vm.group_id + "/presence";
-                mqtt_client.subscribe(presence_topic);
-                $scope.vm.subscribed_topics.push(presence_topic);
-
-                // Send new member message "rtwchat/group/{group_id}/presence"
+				
+				// Send new member message "rtwchat/group/{group_id}/chat/{user_id}"
 				var msg = $scope.vm.user_id + "online";
-                var mqtt_message = new Paho.MQTT.Message(msg);
-                mqtt_message.destinationName = "rtwchat/group/" + $scope.vm.group_id + "/presence";
-                mqtt_message.retained = true; // *** 設成保留訊息 ***
-                mqtt_client.send(mqtt_message);
+                var mqtt_message_g = new Paho.MQTT.Message("abc");
+                mqtt_message_g.destinationName = "rtwchat/group/" + $scope.vm.group_id + "/chat/+";
+                mqtt_message_g.retained = true; // *** 設成保留訊息 ***
+                //mqtt_client.send(mqtt_message_g);
+					
 
                 // 訂閱自己的Private-Chat主題"rtwchat/group/+/chat/+"
                 //var private_chat_topic = "rtwchat/group/" + $scope.vm.user_id + "/chat/+";
@@ -266,27 +329,14 @@
                 //$scope.vm.subscribed_topics.push(private_chat_topic);
 
                 // Subscribe Group_ID "rtwchat/user/+/group/+"
-                var group_topic = "rtwchat/group/" + $scope.vm.group_id + "/group/+";
-            	mqtt_client.subscribe(group_topic);
-            	$scope.vm.subscribed_topics.push(group_topic);
-
-                var user_id = $scope.vm.user_id; //get the "userid"
-                var idx = $scope.vm.subgroups.indexOf(user_id); // 檢查在UI的array中是否存在相同的使用者
-                regex = "(.+) online";
-                found = message.payloadString.match(regex);
-                //found = msgObj.payload.match(regex);
-                if (found) {
-                    if (idx == -1)
-                        $scope.vm.subgroups.push(user_id);
-                }
-                else {
-                    if (idx != -1)
-                        $scope.vm.subgroups.splice(idx, 1);
-                }
+                //var group_topic = "rtwchat/group/" + $scope.vm.group_id + "/group/+";
+            	//mqtt_client.subscribe(group_topic);
+            	//$scope.vm.subscribed_topics.push(group_topic);
 
             	$scope.$apply(); //<--這個動作通知angular.js來觸發data-binding的sync
 				console.log($scope.vm.group_id);
 			};
+
             // **動作: 斷開MQTT Broker連線
             $scope.action.disconnect_mqtt = function () {
                 // 送出要離線的"offline"訊息
@@ -344,6 +394,7 @@
                 // 取得原生的highchart的物件instance
                 var highchart = $scope.chartConfig.getHighcharts();
                 // 透過原本的highchart的API來修改圖表的資料
+				/*
                 if (chart_data_type === "move") {
                     highchart.series[0].setData([{
                         color: Highcharts.getOptions().colors[0],
@@ -366,108 +417,29 @@
                         y: chart_data
                     }]);
                 }
-            };
+				*/
+				highchart.series[0].setData(
+					[{y: $scope.vm.g1_users.length}, {y: $scope.vm.g2_users.length}]
+				);
+			};
 
             // 設定要繋結到Highchart的chartConfig物件
-            $scope.chartConfig = {
+            $scope.chartConfig = ({
                 options: {
-                    //This is the Main Highcharts chart config. Any Highchart options are valid here.
-                    //will be overriden by values specified below.
                     chart: {
-                        type: 'solidgauge',
-                        marginTop: 50
-                    },
-                    pane: {
-                        startAngle: 0,
-                        endAngle: 360,
-                        background: [{ // Track for Move
-                            outerRadius: '112%',
-                            innerRadius: '88%',
-                            backgroundColor: Highcharts.Color(Highcharts.getOptions().colors[0]).setOpacity(0.3).get(),
-                            borderWidth: 0
-                        }, { // Track for Exercise
-                            outerRadius: '87%',
-                            innerRadius: '63%',
-                            backgroundColor: Highcharts.Color(Highcharts.getOptions().colors[1]).setOpacity(0.3).get(),
-                            borderWidth: 0
-                        }, { // Track for Stand
-                            outerRadius: '62%',
-                            innerRadius: '38%',
-                            backgroundColor: Highcharts.Color(Highcharts.getOptions().colors[2]).setOpacity(0.3).get(),
-                            borderWidth: 0
-                        }]
-                    },
-                    plotOptions: {
-                        solidgauge: {
-                            borderWidth: '34px',
-                            dataLabels: {
-                                enabled: false
-                            },
-                            linecap: 'round',
-                            stickyTracking: false
-                        }
-                    },
-                    tooltip: {
-                        borderWidth: 0,
-                        backgroundColor: 'none',
-                        shadow: false,
-                        style: {
-                            fontSize: '16px'
-                        },
-                        pointFormat: '{series.name}<br><span style="font-size:2em; color: {point.color}; font-weight: bold">{point.y}%</span>',
-                        positioner: function (labelWidth, labelHeight) {
-                            return {
-                                x: 200 - labelWidth / 2,
-                                y: 180
-                            };
-                        }
+                        type: 'column',
                     }
-                },
-                title: {
-                    text: "活動力",
-                    style: {
-                        fontSize: '20px',
-                        fontFamily: 'Microsoft JhengHei'
-                    }
-                },                
-                yAxis: {
-                    min: 0,
-                    max: 100,
-                    lineWidth: 0,
-                    tickPositions: []
-                },
-                credits: {
-                    enabled: true
-                },
-                series: [{
-                    name: 'Move',
-                    borderColor: Highcharts.getOptions().colors[0],
-                    data: [{
-                        color: Highcharts.getOptions().colors[0],
-                        radius: '100%',
-                        innerRadius: '100%',
-                        y: $scope.vm.chart_data_move
-                    }]
-                }, {
-                    name: 'Exercise',
-                    borderColor: Highcharts.getOptions().colors[1],
-                    data: [{
-                        color: Highcharts.getOptions().colors[1],
-                        radius: '75%',
-                        innerRadius: '75%',
-                        y: $scope.vm.chart_data_exercise
-                    }]
-                }, {
-                    name: 'Stand',
-                    borderColor: Highcharts.getOptions().colors[2],
-                    data: [{
-                        color: Highcharts.getOptions().colors[2],
-                        radius: '50%',
-                        innerRadius: '50%',
-                        y: $scope.vm.chart_data_standard
-                    }]
-                }]
-            };
+            	},
+				title: {
+					text: ""
+				},
+				xAxis: {
+					categories: ['g1','g2']
+				},
+				series:[{
+					data:[{y:0},{y:0},{y:0},{y:0},{y:0}]
+				}]
+			});
         });
     </script>
 </body>
